@@ -1,0 +1,9 @@
+{
+  "username": "",
+  "password": "",
+  "check_interval": 600,
+  "auto_login_enabled": true,
+  "reconnect_retries": 3,
+  "reconnect_wait_seconds": 20,
+  "prevent_sleep_enabled": true
+}

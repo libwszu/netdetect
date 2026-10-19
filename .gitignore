@@ -1,0 +1,40 @@
+# Python / environments
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Personal accounts and runtime state (also match nested copies)
+net_monitor_config.json
+*.log
+*.pid
+*.stop
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Build outputs and old local distribution copies
+build/
+dist/
+发布包/
+release-assets/
+*.exe
+*.zip
+# Keep the reusable PyInstaller .spec in version control.
+
+# Local assistant / editor state
+.workbuddy/
+.codex/
+.vscode/
+.idea/
+logo_b64.txt
+szu_logo_try.png
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Historical documentation retained locally
+/CHANGELOG.md
