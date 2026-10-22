@@ -1,5 +1,5 @@
 """
-深大校园网断网自动重连工具 v3.0
+深大校园网断网自动重连工具 v4.7
 ====================================
 - 每10分钟检测网络连通性（ping + HTTP双重检测）
 - 断网后通过深澜SRUN API直接认证登录（无需浏览器！）
@@ -12,6 +12,7 @@
 """
 
 import sys
+from i18n import tr, parse_cli_args, ui_font
 import subprocess
 import time
 import datetime
@@ -249,7 +250,7 @@ def detect_vpn():
         )
         default_routes = [l for l in result.stdout.split("\n") if "0.0.0.0" in l and "On-link" not in l]
         if len(default_routes) > 2:
-            suspected.append("多默认路由(可能VPN)")
+            suspected.append(tr('多默认路由(可能VPN)'))
     except Exception:
         pass
 
@@ -471,12 +472,12 @@ class SZUSrunClient:
         })
 
         if self._is_vpn:
-            log(f"{YELLOW}⚠️ VPN已检测: {', '.join(self._vpn_names[:2])}{RESET}")
-            log(f"{CYAN}🔌 SRUN认证请求已关闭系统代理，避免被VPN代理接管{RESET}")
-            log(f"{CYAN}🌐 SRUN直连IP: {self._srun_ip}{RESET}")
+            log(tr('{0}⚠️ VPN已检测: {1}{2}', YELLOW, ', '.join(self._vpn_names[:2]), RESET))
+            log(tr('{0}🔌 SRUN认证请求已关闭系统代理，避免被VPN代理接管{1}', CYAN, RESET))
+            log(tr('{0}🌐 SRUN直连IP: {1}{2}', CYAN, self._srun_ip, RESET))
 
         if self.auth_username != self.username:
-            log(f"{CYAN}账号未带认证域，按官方默认补全为: {self.auth_username}{RESET}")
+            log(tr('{0}账号未带认证域，按官方默认补全为: {1}{2}', CYAN, self.auth_username, RESET))
 
     @staticmethod
     def _resolve_srun_ip():
@@ -501,8 +502,8 @@ class SZUSrunClient:
         self.ip = get_local_ip()
         is_vpn, vpn_names = detect_vpn()
         if is_vpn:
-            log(f"{YELLOW}⚠️ 检测到VPN: {', '.join(vpn_names[:2])}{RESET}")
-        log(f"{CYAN}📡 本机IP: {self.ip}{RESET}")
+            log(tr('{0}⚠️ 检测到VPN: {1}{2}', YELLOW, ', '.join(vpn_names[:2]), RESET))
+        log(tr('{0}📡 本机IP: {1}{2}', CYAN, self.ip, RESET))
         return self.ip
 
     def get_challenge(self):
@@ -518,7 +519,7 @@ class SZUSrunClient:
             "_": str(int(time.time() * 1000)),
         }
 
-        log(f"{CYAN}🔑 正在获取认证Token...{RESET}")
+        log(tr('{0}🔑 正在获取认证Token...{1}', CYAN, RESET))
         try:
             resp = self.session.get(url, params=params, timeout=10,
                                      headers=self._get_host_headers())
@@ -526,7 +527,7 @@ class SZUSrunClient:
 
             # 处理空响应（VPN IP被拒绝时可能返回空）
             if not text:
-                log(f"{RED}❌ 服务器返回空（IP可能被VPN拦截）{RESET}")
+                log(tr('{0}❌ 服务器返回空（IP可能被VPN拦截）{1}', RED, RESET))
                 # 重试不带IP
                 params2 = {"callback": SRUN_CALLBACK, "username": self.auth_username,
                           "ip": "", "_": str(int(time.time() * 1000))}
@@ -534,7 +535,7 @@ class SZUSrunClient:
                                          headers=self._get_host_headers())
                 text = resp.text.strip()
                 if not text:
-                    log(f"{RED}❌ 仍返回空，请关闭VPN后重试{RESET}")
+                    log(tr('{0}❌ 仍返回空，请关闭VPN后重试{1}', RED, RESET))
                     return False
 
             # 解析JSONP响应: jQueryCallback({...});
@@ -543,7 +544,7 @@ class SZUSrunClient:
             data = json.loads(text[start:end])
 
             if data.get("res") != "ok":
-                log(f"{RED}❌ 获取Token失败: {data}{RESET}")
+                log(tr('{0}❌ 获取Token失败: {1}{2}', RED, data, RESET))
                 return False
 
             # ★ 用服务器看到的真实IP覆盖本地IP（绕过VPN）
@@ -551,15 +552,15 @@ class SZUSrunClient:
             old_ip = self.ip
             if client_ip and client_ip != old_ip:
                 self.ip = client_ip
-                log(f"{GREEN}🔧 IP已修正: {old_ip} → {client_ip}{RESET}")
+                log(tr('{0}🔧 IP已修正: {1} → {2}{3}', GREEN, old_ip, client_ip, RESET))
 
             self.token = data["challenge"]
             expire = data.get("expire", "?")
-            log(f"{GREEN}✅ Token获取成功 (有效期{expire}秒){RESET}")
+            log(tr('{0}✅ Token获取成功 (有效期{1}秒){2}', GREEN, expire, RESET))
             return True
 
         except Exception as e:
-            log(f"{RED}❌ 获取Token异常: {e}{RESET}")
+            log(tr('{0}❌ 获取Token异常: {1}{2}', RED, e, RESET))
             return False
 
     def build_login_params(self):
@@ -628,12 +629,12 @@ class SZUSrunClient:
         """步骤3：发送认证请求"""
         if not self.token:
             if not self.get_challenge():
-                return {"success": False, "msg": "获取Token失败"}
+                return {"success": False, "msg": tr('获取Token失败')}
 
         params = self.build_login_params()
         url = self._build_url("/cgi-bin/srun_portal")
 
-        log(f"{CYAN}🔐 正在提交认证...{RESET}")
+        log(tr('{0}🔐 正在提交认证...{1}', CYAN, RESET))
         try:
             resp = self.session.get(url, params=params, timeout=15,
                                      headers=self._get_host_headers())
@@ -648,18 +649,18 @@ class SZUSrunClient:
             error_msg = result.get("error_msg", result.get("msg", ""))
 
             if res == "ok":
-                log(f"{GREEN}✅✅✅ 校园网认证成功！{RESET}")
-                return {"success": True, "msg": "认证成功"}
+                log(tr('{0}✅✅✅ 校园网认证成功！{1}', GREEN, RESET))
+                return {"success": True, "msg": tr('认证成功')}
             else:
-                log(f"{RED}❌ 认证失败: [{res}] {error_msg}{RESET}")
+                log(tr('{0}❌ 认证失败: [{1}] {2}{3}', RED, res, error_msg, RESET))
                 return {"success": False, "msg": error_msg}
 
         except ValueError as e:
-            log(f"{RED}❌ 认证响应解析失败: {e}{RESET}")
-            log(f"{YELLOW}   原始响应: {resp.text[:200]}{RESET}")
-            return {"success": False, "msg": "响应格式错误"}
+            log(tr('{0}❌ 认证响应解析失败: {1}{2}', RED, e, RESET))
+            log(tr('{0}   原始响应: {1}{2}', YELLOW, resp.text[:200], RESET))
+            return {"success": False, "msg": tr('响应格式错误')}
         except Exception as e:
-            log(f"{RED}❌ 认证请求异常: {e}{RESET}")
+            log(tr('{0}❌ 认证请求异常: {1}{2}', RED, e, RESET))
             return {"success": False, "msg": str(e)}
 
     def do_logout(self):
@@ -686,16 +687,16 @@ class SZUSrunClient:
                 res = data.get("res", "")
                 emsg = data.get("error_msg", data.get("msg", ""))
                 if res == "ok" or "logout" in str(data).lower():
-                    log(f"{GREEN}✅ 注销成功{RESET}")
+                    log(tr('{0}✅ 注销成功{1}', GREEN, RESET))
                     return True
                 else:
-                    log(f"{RED}❌ 注销失败: [{res}] {emsg}{RESET}")
+                    log(tr('{0}❌ 注销失败: [{1}] {2}{3}', RED, res, emsg, RESET))
                     return False
             except (ValueError, Exception):
-                log(f"{CYAN}📤 已发送注销请求{RESET}")
+                log(tr('{0}📤 已发送注销请求{1}', CYAN, RESET))
                 return True
         except Exception as e:
-            log(f"{RED}❌ 注销失败: {e}{RESET}")
+            log(tr('{0}❌ 注销失败: {1}{2}', RED, e, RESET))
             return False
 
 
@@ -710,14 +711,14 @@ def handle_disconnection(consecutive_failures, cfg):
     retry_interval = cfg.get("reconnect_wait_seconds", 20)
     auto_enabled = cfg.get("auto_login_enabled", True)
 
-    log(f"{RED}❌ 网络异常！(连续第 {consecutive_failures} 次){RESET}")
+    log(tr('{0}❌ 网络异常！(连续第 {1} 次){2}', RED, consecutive_failures, RESET))
 
     # 蜂鸣报警
     beep(1000, 500)
 
     if consecutive_failures < 2 or not auto_enabled:
         if consecutive_failures >= 3 and not auto_enabled:
-            log(f"{YELLOW}⚠️ 网络持续异常 {consecutive_failures} 次！（自动登录已禁用）{RESET}")
+            log(tr('{0}⚠️ 网络持续异常 {1} 次！（自动登录已禁用）{2}', YELLOW, consecutive_failures, RESET))
         return False
 
     # ===== 触发SRUN自动认证 =====
@@ -725,17 +726,17 @@ def handle_disconnection(consecutive_failures, cfg):
     password = cfg.get("password", "")
 
     if not username or not password:
-        log(f"{YELLOW}⚠️ 账号或密码为空！请编辑 {CONFIG_FILE} 填写。{RESET}")
+        log(tr('{0}⚠️ 账号或密码为空！请编辑 {1} 填写。{2}', YELLOW, CONFIG_FILE, RESET))
         return False
 
     log(f"\n{MAGENTA}{'━' * 50}{RESET}")
-    log(f"{MAGENTA}  🔄 启动深大校园网SRUN自动认证{RESET}")
+    log(tr('{0}  🔄 启动深大校园网SRUN自动认证{1}', MAGENTA, RESET))
     log(f"{MAGENTA}{'━' * 50}\n{RESET}")
 
     client = SZUSrunClient(username, password)
 
     for attempt in range(1, max_retries + 1):
-        log(f"{CYAN}▶ 第 {attempt}/{max_retries} 次认证尝试...{RESET}")
+        log(tr('{0}▶ 第 {1}/{2} 次认证尝试...{3}', CYAN, attempt, max_retries, RESET))
 
         # 重置token（每次重新获取新token）
         client.token = None
@@ -745,12 +746,12 @@ def handle_disconnection(consecutive_failures, cfg):
 
         if result["success"]:
             # 登录成功后等待几秒再验证
-            log(f"{CYAN}⏳ 等待 {retry_interval} 秒后验证网络...{RESET}")
+            log(tr('{0}⏳ 等待 {1} 秒后验证网络...{2}', CYAN, retry_interval, RESET))
             time.sleep(retry_interval)
 
             if check_network():
                 log(f"\n{GREEN}{'=' * 50}{RESET}")
-                log(f"{GREEN}  🎉 网络已恢复！校园网认证成功！{RESET}")
+                log(tr('{0}  🎉 网络已恢复！校园网认证成功！{1}', GREEN, RESET))
                 log(f"{GREEN}{'=' * 50}{RESET}\n")
                 # 成功提示音
                 beep(1200, 200)
@@ -758,18 +759,18 @@ def handle_disconnection(consecutive_failures, cfg):
                 beep(1500, 300)
                 return True
             else:
-                log(f"{YELLOW}⚠️ 认证成功但网络尚未通畅，继续等待...{RESET}")
+                log(tr('{0}⚠️ 认证成功但网络尚未通畅，继续等待...{1}', YELLOW, RESET))
         else:
-            log(f"{YELLOW}⚠️ 第 {attempt} 次认证未通过{RESET}")
+            log(tr('{0}⚠️ 第 {1} 次认证未通过{2}', YELLOW, attempt, RESET))
             if attempt < max_retries:
                 wait_sec = min(retry_interval, 15)
-                log(f"{CYAN}⏳ 等待 {wait_sec} 秒后重试...{RESET}")
+                log(tr('{0}⏳ 等待 {1} 秒后重试...{2}', CYAN, wait_sec, RESET))
                 time.sleep(wait_sec)
 
-    log(f"{RED}\n😞 已尝试 {max_retries} 次均未恢复，请手动检查：{RESET}")
-    log(f"  1. 是否连接了 SZU_WLAN / 有线网络？")
-    log(f"  2. 账号密码是否正确？")
-    log(f"  3. 是否欠费或账号被冻结？\n")
+    log(tr('{0}\n😞 已尝试 {1} 次均未恢复，请手动检查：{2}', RED, max_retries, RESET))
+    log(tr('  1. 是否连接了 SZU_WLAN / 有线网络？'))
+    log(tr('  2. 账号密码是否正确？'))
+    log(tr('  3. 是否欠费或账号被冻结？\n'))
     return False
 
 
@@ -785,34 +786,35 @@ def show_banner():
         user_display = user_display[:3] + "***"  # 脱敏显示
 
     print(f"\n{'='*58}")
-    print(f"  🎓 深大校园网断网自动重连工具 v3.0")
-    print(f"  (深澜SRUN认证 · 无需浏览器 · 纯API直连)")
+    print(tr('  🎓 深大校园网断网自动重连工具 v4.7'))
+    print(tr('  (深澜SRUN认证 · 无需浏览器 · 纯API直连)'))
     print(f"{'='*58}")
-    print(f"  检测间隔: {CHECK_INTERVAL // 60}分钟 ({CHECK_INTERVAL}秒)")
-    print(f"  检测方式: Ping + HTTP 双重验证")
-    print(f"  认证系统: 深澜 SRUN @ net.szu.edu.cn")
-    print(f"  账号:     {user_display or '(未设置)'}")
-    print(f"  自动重连: {'开启' if cfg.get('auto_login_enabled') else '关闭'}")
-    print(f"  重试次数: {cfg.get('reconnect_retries', 3)}次")
-    print(f"  日志文件: {os.path.abspath(LOG_FILE)}")
+    print(tr('  检测间隔: {0}分钟 ({1}秒)', CHECK_INTERVAL // 60, CHECK_INTERVAL))
+    print(tr('  检测方式: Ping + HTTP 双重验证'))
+    print(tr('  认证系统: 深澜 SRUN @ net.szu.edu.cn'))
+    print(tr('  账号:     {0}', user_display or tr('(未设置)')))
+    print(tr('  自动重连: {0}', tr('开启') if cfg.get('auto_login_enabled') else tr('关闭')))
+    print(tr('  重试次数: {0}次', cfg.get('reconnect_retries', 3)))
+    print(tr('  日志文件: {0}', os.path.abspath(LOG_FILE)))
     print(f"{'='*58}")
-    print(f"  按 Ctrl+C 停止 | 运行 setup_config.py 配置账号\n")
+    print(tr('  按 Ctrl+C 停止 | 运行 setup_config.py 配置账号\n'))
 
 
 # ══════════════════════════════════════
 #  主循环
 # ══════════════════════════════════════
 
-def main():
-    show_banner()
+def main(argv=None):
+    parse_cli_args(argv, description=tr("深大校园网监控工具（命令行）"))
     cfg = load_config()
+    show_banner()
 
     if not cfg.get("username") or not cfg.get("password"):
-        log(f"{YELLOW}⚠️ 首次运行！请先填写账号密码：{RESET}")
-        log(f"  方式1: 运行 python setup_config.py （推荐）")
-        log(f"  方式2: 手动编辑 {CONFIG_FILE}\n")
+        log(tr('{0}⚠️ 首次运行！请先填写账号密码：{1}', YELLOW, RESET))
+        log(tr('  方式1: 运行 python setup_config.py （推荐）'))
+        log(tr('  方式2: 手动编辑 {0}\n', CONFIG_FILE))
 
-    log(f"{CYAN}🚀 监控启动...{RESET}")
+    log(tr('{0}🚀 监控启动...{1}', CYAN, RESET))
 
     consecutive_failures = 0
     sleep_prevention_active = False
@@ -820,9 +822,9 @@ def main():
     if cfg.get("prevent_sleep_enabled", True):
         sleep_prevention_active = set_system_sleep_prevention(True)
         if sleep_prevention_active:
-            log(f"{GREEN}🔒 已启用锁屏防睡眠：允许锁屏/息屏，但阻止系统睡眠{RESET}")
+            log(tr('{0}🔒 已启用锁屏防睡眠：允许锁屏/息屏，但阻止系统睡眠{1}', GREEN, RESET))
         else:
-            log(f"{YELLOW}⚠️ 无法启用锁屏防睡眠，请检查系统权限{RESET}")
+            log(tr('{0}⚠️ 无法启用锁屏防睡眠，请检查系统权限{1}', YELLOW, RESET))
 
     try:
         while True:
@@ -832,7 +834,7 @@ def main():
             is_online = check_network()
 
             if is_online:
-                log(f"{GREEN}✅ 网络正常{RESET}")
+                log(tr('{0}✅ 网络正常{1}', GREEN, RESET))
                 consecutive_failures = 0
             else:
                 consecutive_failures += 1
@@ -844,17 +846,17 @@ def main():
             next_time = datetime.datetime.now() + datetime.timedelta(
                 seconds=CHECK_INTERVAL
             )
-            log(f"{CYAN}💤 下次检测: {next_time.strftime('%H:%M:%S')}{RESET}")
+            log(tr('{0}💤 下次检测: {1}{2}', CYAN, next_time.strftime('%H:%M:%S'), RESET))
             print("-" * 52)
 
             time.sleep(CHECK_INTERVAL)
     except KeyboardInterrupt:
-        log(f"\n{YELLOW}🛑 用户手动停止监控{RESET}")
-        log(f"{CYAN}日志已保存至: {os.path.abspath(LOG_FILE)}{RESET}")
+        log(tr('\n{0}🛑 用户手动停止监控{1}', YELLOW, RESET))
+        log(tr('{0}日志已保存至: {1}{2}', CYAN, os.path.abspath(LOG_FILE), RESET))
     finally:
         if sleep_prevention_active:
             set_system_sleep_prevention(False)
-            log(f"{CYAN}🔓 已恢复系统睡眠策略{RESET}")
+            log(tr('{0}🔓 已恢复系统睡眠策略{1}', CYAN, RESET))
 
 
 if __name__ == "__main__":
