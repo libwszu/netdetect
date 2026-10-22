@@ -5,7 +5,7 @@ a = Analysis(
     ['net_monitor_gui.py'],
     pathex=[],
     binaries=[],
-    datas=[('assets/szu_logo_64.png', 'assets'), ('assets/szu_logo.ico', 'assets')],
+    datas=[('assets/szu_logo_64.png', 'assets'), ('assets/szu_logo.ico', 'assets'), ('LICENSE', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

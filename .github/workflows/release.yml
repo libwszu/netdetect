@@ -1,0 +1,62 @@
+name: Build portable Windows app
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag, for example v4.7
+        required: true
+        default: v4.7
+        type: string
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: portable-release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      PYTHONUTF8: '1'
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          architecture: x64
+      - name: Install build dependencies
+        run: python -m pip install -r requirements.txt pyinstaller==6.21.0
+      - name: Run offline tests
+        run: python -m unittest discover -s tests -v
+      - name: Build and validate the portable application
+        run: python tools/build_release.py --edition cn --tag "$env:RELEASE_TAG" --source-sha "$env:GITHUB_SHA"
+      - name: Publish verified download assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        shell: pwsh
+        run: |
+          $existingJson = & gh api "repos/$env:GH_REPO/releases/tags/$env:RELEASE_TAG" 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            $existing = $existingJson | ConvertFrom-Json
+            if ($existing.target_commitish -ne $env:GITHUB_SHA) { throw 'This tag belongs to a different source commit. Use a new version tag.' }
+            if (-not $existing.draft) { Write-Output 'This source version is already published.'; exit 0 }
+          } else {
+            $title = "深大校园网自动重连工具 $env:RELEASE_TAG（Windows 64 位免安装）"
+            & gh release create "$env:RELEASE_TAG" --repo "$env:GH_REPO" --target "$env:GITHUB_SHA" --title "$title" --notes-file release-assets/RELEASE_NOTES.md --draft
+            if ($LASTEXITCODE -ne 0) { throw 'Could not create the draft release.' }
+          }
+          $assets = @(Get-ChildItem -LiteralPath release-assets -File | Where-Object { $_.Extension -in '.exe', '.zip' -or $_.Name -in 'BUILD-INFO.json', 'SHA256SUMS.txt' } | ForEach-Object { $_.FullName })
+          if ($assets.Count -ne 4) { throw 'Unexpected release asset inventory.' }
+          & gh release upload "$env:RELEASE_TAG" @assets --repo "$env:GH_REPO" --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'Could not upload all assets.' }
+          & gh release edit "$env:RELEASE_TAG" --repo "$env:GH_REPO" --draft=false --latest
+          if ($LASTEXITCODE -ne 0) { throw 'Could not publish the release.' }

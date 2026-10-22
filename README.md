@@ -2,7 +2,18 @@
 
 中文独立版 · [English project](https://github.com/libwszu/netdetect-en)
 
-[下载中文源码 ZIP](https://github.com/libwszu/netdetect/archive/refs/heads/main.zip)
+**[下载中文版 EXE（Windows 64 位，免安装）](https://github.com/libwszu/netdetect/releases/latest/download/SZU-Net-Monitor-CN.exe)**
+
+[便携 ZIP 包](https://github.com/libwszu/netdetect/releases/latest/download/SZU-Net-Monitor-CN-Windows-x64.zip) · [全部发布版本](https://github.com/libwszu/netdetect/releases) · [开发者源码 ZIP](https://github.com/libwszu/netdetect/archive/refs/heads/main.zip)
+
+## 下载后直接使用
+
+无需安装 Python。下载上面的 EXE，放到自己可写的文件夹后双击运行；也可下载便携 ZIP，解压后运行其中的 EXE。
+
+首次运行进入“账号设置”，填写自己的校园网账号和密码，保存后点击“启动监控”。个人配置和日志会保存在程序所在目录，发布包不含任何人的账号信息。适用于 Windows 10 / 11 的 64 位系统。
+
+Windows 可能对未签名程序提示发布者未知。请核对下载来源为本仓库 Releases，或用 `SHA256SUMS.txt` 校验文件；无需关闭系统安全防护。
+
 
 适用于深圳大学深澜 SRUN 校园网的 Windows 网络监控工具。检测连接状态，在需要时使用用户自己的账号完成校园网认证，提供图形界面、控制台和无界面后台监控。
 
@@ -27,10 +38,10 @@
 
 ## 使用方式
 
-本仓库仅保存最新版源码、必要图标、构建配置及空白账号示例。已有 EXE、个人配置、运行日志和旧发布包保留在本地。
+Git 源码仓库保存最新版代码及必要资源；免安装 EXE 和便携 ZIP 通过 Releases 提供。个人配置、运行日志和旧发布包不纳入 Git。
 
 1. 连接校园有线网络或适用的校园 Wi-Fi。
-2. 按下文从源码启动，打开“账号设置”，填写自己的账号和认证密码，保存配置。
+2. 双击下载的 EXE，打开“账号设置”，填写自己的账号和认证密码，保存配置。
 3. 回到“监控控制”，点击“启动监控”。
 4. 按需调整检测间隔，或启用登录后运行的后台守护。
 
@@ -140,3 +151,7 @@ GUI 和 daemon 读写程序目录的配置；控制台与配置向导使用当�
 - 协议实现参考：[lossinwind/szu-auto-login](https://github.com/lossinwind/szu-auto-login)。
 
 `assets/` 中的校徽相关资源仅用于识别使用场景，不表示官方背书；第三方标识的相关权利归各自权利人。
+
+## 发布构建
+
+免安装版本由 GitHub Actions 的 Windows 环境从公开源码构建。运行离线测试、打包后启动检查和内置模块检查后，生成 EXE、便携 ZIP、SHA-256 校验表及构建信息，再发布到 Releases。维护者可以在 Actions 中运行“Build portable Windows app”，或推送版本标签触发构建。
